@@ -1,0 +1,7 @@
+﻿<Application>
+  <Menus>
+    <action type="add">
+      <Menu Checked="0" Enabled="1" FatherUID="1760" Image="" String="Consulta Existencias de Artículos" Type="1" UniqueID="EXO-MnCEART"></Menu>
+    </action>
+  </Menus>
+</Application>

@@ -197,6 +197,11 @@ Public Class EXO_STOCK
 
                                 Case SAPbouiCOM.BoEventTypes.et_PICKER_CLICKED
 
+                                Case SAPbouiCOM.BoEventTypes.et_ITEM_PRESSED
+                                    If EventHandler_ItemPressed_After(infoEvento) = False Then
+                                        GC.Collect()
+                                        Return False
+                                    End If
                             End Select
                     End Select
                 End If
@@ -344,20 +349,20 @@ Public Class EXO_STOCK
             sIC = oForm.DataSources.UserDataSources.Item("UDIC").Value.ToString
             oForm.Freeze(True)
             Select Case pVal.ItemUID
-                Case "btn_Carga"
+                Case "btnCa"
 #Region "cargar Grid con los datos leidos"
                     'Ahora cargamos el Grid con los datos guardados
                     objGlobal.SBOApp.StatusBar.SetText("Cargando datos en pantalla ... Espere por favor", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Warning)
                     sSQL = " SELECT * FROM ("
                     sSQL &= "SELECT OITW.""WhsCode"" ""Almacén"",OWHS.""WhsName"" ""Desc. Almacén"", OITW.""ItemCode"" ""Artículo"", OITM.""ItemName"" ""Desc. Artículo"" "
-                    sSQL &= " , OITB.""ItmsGrpNam"" ""Familia"", ifnull(""SUBFAM"".""U_EXO_DESSUBFAM"",'') ""Subfamilia"", OITM.""U_stec_marcas"" ""Marca"" "
+                    sSQL &= " , OITB.""ItmsGrpNam"" ""Familia"", CONCAT(ifnull(""SUBFAM"".""U_EXO_FABDES"",''),CONCAT('-',ifnull(""SUBFAM"".""U_EXO_DESSUBFAM"",''))) ""Subfamilia"", OITM.""U_stec_marcas"" ""Marca"" "
                     sSQL &= ", OITW.""OnHand"" ""Stock"", OITW.""IsCommited"" ""comprometido"", OITW.""OnOrder"" ""Pedido"",ifnull(OMRC.""FirmName"",'') ""Fabricante"", Ifnull(DTO.""Discount"",0) ""Dto. IC"" "
                     sSQL &= " From OITW "
                     sSQL &= " INNER JOIN OWHS ON OITW.""WhsCode""=OWHS.""WhsCode"" "
                     sSQL &= " INNER JOIN OITM ON OITW.""ItemCode""=OITM.""ItemCode"" "
                     sSQL &= " LEFT JOIN OITB ON OITB.""ItmsGrpCod""=OITM.""ItmsGrpCod"" "
                     sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=OITM.""FirmCode"" "
-                    sSQL &= " LEFT JOIN ""@EXO_FAMSUBFAM"" ""SUBFAM"" ON ""SUBFAM"".""U_EXO_CODFAM""=OITM.""ItmsGrpCod"" and ""SUBFAM"".""U_EXO_CODFAM""=OITM.""U_EXO_SUBFAM"" "
+                    sSQL &= " LEFT JOIN ""@EXO_FAMSUBFAM"" ""SUBFAM"" ON ""SUBFAM"".""DocEntry""=OITM.""U_EXO_SUBFAM"" "
                     sSQL &= " LEFT JOIN (SELECT EDG1.*, OMRC.""FirmName"" ""Fabricante"" FROM OEDG "
                     sSQL &= " LEFT JOIN EDG1 ON EDG1.""AbsEntry""=OEDG.""AbsEntry"" "
                     sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=EDG1.""ObjKey"" "
@@ -415,6 +420,7 @@ Public Class EXO_STOCK
                 CType(oform.Items.Item("grd_DOC").Specific, SAPbouiCOM.Grid).Columns.Item(i).Type = SAPbouiCOM.BoGridColumnType.gct_EditText
                 oColumnTxt = CType(CType(oform.Items.Item("grd_DOC").Specific, SAPbouiCOM.Grid).Columns.Item(i), SAPbouiCOM.EditTextColumn)
                 oColumnTxt.Editable = False
+                oColumnTxt.TitleObject.Sortable = True
                 If (i >= 7 And i <= 9) Or i = 11 Then
                     oColumnTxt.RightJustified = True
                 End If
@@ -440,53 +446,57 @@ Public Class EXO_STOCK
         EventHandler_DOUBLE_CLICK_After = False
 
         Try
-            sCodArt = oForm.DataSources.DataTables.Item("DT_DOC").GetValue("Artículo", pVal.Row).ToString
-            sIC = oForm.DataSources.UserDataSources.Item("UDIC").Value.ToString
+            If pVal.Row >= 0 Then
+                sCodArt = oForm.DataSources.DataTables.Item("DT_DOC").GetValue("Artículo", pVal.Row).ToString
+                sIC = oForm.DataSources.UserDataSources.Item("UDIC").Value.ToString
 
 #Region "cargar Grid con los datos leidos"
-            'Ahora cargamos el Grid con los datos guardados
-            objGlobal.SBOApp.StatusBar.SetText("Cargando datos en pantalla ... Espere por favor", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Warning)
-            sSQL = " SELECT * FROM ("
-            sSQL &= "SELECT OITW.""WhsCode"" ""Almacén"",OWHS.""WhsName"" ""Desc. Almacén"", OITW.""ItemCode"" ""Artículo"", OITM.""ItemName"" ""Desc. Artículo"" "
-            sSQL &= " , OITB.""ItmsGrpNam"" ""Familia"", ifnull(""SUBFAM"".""U_EXO_DESSUBFAM"",'') ""Subfamilia"", OITM.""U_stec_marcas"" ""Marca"" "
-            sSQL &= ", OITW.""OnHand"" ""Stock"", OITW.""IsCommited"" ""comprometido"", OITW.""OnOrder"" ""Pedido"",ifnull(OMRC.""FirmName"",'') ""Fabricante"", Ifnull(DTO.""Discount"",0) ""Dto. IC"" "
-            sSQL &= " From OITW "
-            sSQL &= " INNER JOIN OWHS ON OITW.""WhsCode""=OWHS.""WhsCode"" "
-            sSQL &= " INNER JOIN OITM ON OITW.""ItemCode""=OITM.""ItemCode"" "
-            sSQL &= " LEFT JOIN OITB ON OITB.""ItmsGrpCod""=OITM.""ItmsGrpCod"" "
-            sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=OITM.""FirmCode"" "
-            sSQL &= " LEFT JOIN ""@EXO_FAMSUBFAM"" ""SUBFAM"" ON ""SUBFAM"".""U_EXO_CODFAM""=OITM.""ItmsGrpCod"" and ""SUBFAM"".""U_EXO_CODFAM""=OITM.""U_EXO_SUBFAM"" "
-            sSQL &= " LEFT JOIN (SELECT EDG1.*, OMRC.""FirmName"" ""Fabricante"" FROM OEDG "
-            sSQL &= " LEFT JOIN EDG1 ON EDG1.""AbsEntry""=OEDG.""AbsEntry"" "
-            sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=EDG1.""ObjKey"" "
-            sSQL &= " WHERE OEDG.""ObjCode""='" & sIC & "' and EDG1.""ObjType""='43' and ""ValidFor""='Y' "
-            sSQL &= " And (ifnull(""ValidForm"",'" & sFecha & "')>='" & sFecha & "' and ifnull(""ValidTo"",'" & sFecha & "')<='" & sFecha & "')) DTO ON DTO.""ObjKey""=OITM.""FirmCode"" "
-            sSQL &= ") t WHERE 1=1 "
-            If sCodArt.Trim <> "" Then
-                sSQL &= " and t.""Artículo""='" & sCodArt & "' "
-            End If
-            sSQL &= " ORDER BY t.""Artículo"", t.""Almacén"" "
-            Dim oFP As SAPbouiCOM.FormCreationParams = Nothing
-            oFP = CType(objGlobal.SBOApp.CreateObject(SAPbouiCOM.BoCreatableObjectType.cot_FormCreationParams), SAPbouiCOM.FormCreationParams)
-            oFP.XmlData = objGlobal.leerEmbebido(Me.GetType(), "EXO_CEART2.srf")
-            oFP.XmlData = oFP.XmlData.Replace("modality=""0""", "modality=""1""")
-            Try
-                oFormDetalle = objGlobal.SBOApp.Forms.AddEx(oFP)
-
-            Catch ex As Exception
-                If ex.Message.StartsWith("Form - already exists") = True Then
-                    objGlobal.SBOApp.StatusBar.SetText("El formulario ya está abierto.", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Error)
-                    Exit Function
-                ElseIf ex.Message.StartsWith("Se produjo un error interno") = True Then 'Falta de autorización
-                    Exit Function
+                'Ahora cargamos el Grid con los datos guardados
+                objGlobal.SBOApp.StatusBar.SetText("Cargando datos en pantalla ... Espere por favor", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Warning)
+                sSQL = " SELECT * FROM ("
+                sSQL &= "SELECT OITW.""WhsCode"" ""Almacén"",OWHS.""WhsName"" ""Desc. Almacén"", OITW.""ItemCode"" ""Artículo"", OITM.""ItemName"" ""Desc. Artículo"" "
+                sSQL &= " , OITB.""ItmsGrpNam"" ""Familia"", ifnull(""SUBFAM"".""U_EXO_DESSUBFAM"",'') ""Subfamilia"", OITM.""U_stec_marcas"" ""Marca"" "
+                sSQL &= ", OITW.""OnHand"" ""Stock"", OITW.""IsCommited"" ""comprometido"", OITW.""OnOrder"" ""Pedido"",ifnull(OMRC.""FirmName"",'') ""Fabricante"", Ifnull(DTO.""Discount"",0) ""Dto. IC"" "
+                sSQL &= " From OITW "
+                sSQL &= " INNER JOIN OWHS ON OITW.""WhsCode""=OWHS.""WhsCode"" "
+                sSQL &= " INNER JOIN OITM ON OITW.""ItemCode""=OITM.""ItemCode"" "
+                sSQL &= " LEFT JOIN OITB ON OITB.""ItmsGrpCod""=OITM.""ItmsGrpCod"" "
+                sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=OITM.""FirmCode"" "
+                sSQL &= " LEFT JOIN ""@EXO_FAMSUBFAM"" ""SUBFAM"" ON ""SUBFAM"".""U_EXO_CODFAM""=OITM.""ItmsGrpCod"" and ""SUBFAM"".""U_EXO_CODFAM""=OITM.""U_EXO_SUBFAM"" "
+                sSQL &= " LEFT JOIN (SELECT EDG1.*, OMRC.""FirmName"" ""Fabricante"" FROM OEDG "
+                sSQL &= " LEFT JOIN EDG1 ON EDG1.""AbsEntry""=OEDG.""AbsEntry"" "
+                sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=EDG1.""ObjKey"" "
+                sSQL &= " WHERE OEDG.""ObjCode""='" & sIC & "' and EDG1.""ObjType""='43' and ""ValidFor""='Y' "
+                sSQL &= " And (ifnull(""ValidForm"",'" & sFecha & "')>='" & sFecha & "' and ifnull(""ValidTo"",'" & sFecha & "')<='" & sFecha & "')) DTO ON DTO.""ObjKey""=OITM.""FirmCode"" "
+                sSQL &= ") t WHERE 1=1 "
+                If sCodArt.Trim <> "" Then
+                    sSQL &= " and t.""Artículo""='" & sCodArt & "' "
                 End If
-            End Try
+                sSQL &= " ORDER BY t.""Artículo"", t.""Almacén"" "
+                Dim oFP As SAPbouiCOM.FormCreationParams = Nothing
+                oFP = CType(objGlobal.SBOApp.CreateObject(SAPbouiCOM.BoCreatableObjectType.cot_FormCreationParams), SAPbouiCOM.FormCreationParams)
+                oFP.XmlData = objGlobal.leerEmbebido(Me.GetType(), "EXO_CEART2.srf")
+                oFP.XmlData = oFP.XmlData.Replace("modality=""0""", "modality=""1""")
+                Try
+                    oFormDetalle = objGlobal.SBOApp.Forms.AddEx(oFP)
 
-            'Cargamos grid
-            oFormDetalle.DataSources.DataTables.Item("DT_DOC").ExecuteQuery(sSQL)
-            FormateaGrid(oFormDetalle)
-            objGlobal.SBOApp.StatusBar.SetText("Datos cargados correctamente.", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Success)
+                Catch ex As Exception
+                    If ex.Message.StartsWith("Form - already exists") = True Then
+                        objGlobal.SBOApp.StatusBar.SetText("El formulario ya está abierto.", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Error)
+                        Exit Function
+                    ElseIf ex.Message.StartsWith("Se produjo un error interno") = True Then 'Falta de autorización
+                        Exit Function
+                    End If
+                End Try
+
+                'Cargamos grid
+                oFormDetalle.DataSources.DataTables.Item("DT_DOC").ExecuteQuery(sSQL)
+                FormateaGrid(oFormDetalle)
+                objGlobal.SBOApp.StatusBar.SetText("Datos cargados correctamente.", SAPbouiCOM.BoMessageTime.bmt_Short, SAPbouiCOM.BoStatusBarMessageType.smt_Success)
 #End Region
+            End If
+
+
 
             EventHandler_DOUBLE_CLICK_After = True
 
@@ -495,7 +505,11 @@ Public Class EXO_STOCK
         Catch ex As Exception
             objGlobal.Mostrar_Error(ex, EXO_UIAPI.EXO_UIAPI.EXO_TipoMensaje.Excepcion)
         Finally
-            oFormDetalle.Visible = True
+            If oFormDetalle Is Nothing Then
+            Else
+                oFormDetalle.Visible = True
+            End If
+
             EXO_CleanCOM.CLiberaCOM.liberaCOM(CType(oForm, Object))
             EXO_CleanCOM.CLiberaCOM.liberaCOM(CType(oFormDetalle, Object))
         End Try

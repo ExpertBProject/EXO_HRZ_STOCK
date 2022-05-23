@@ -357,9 +357,11 @@ Public Class EXO_STOCK
                     sSQL &= "SELECT OITW.""WhsCode"" ""Almacén"",OWHS.""WhsName"" ""Desc. Almacén"", OITW.""ItemCode"" ""Artículo"", OITM.""ItemName"" ""Desc. Artículo"" "
                     sSQL &= " , OITB.""ItmsGrpNam"" ""Familia"", CONCAT(ifnull(""SUBFAM"".""U_EXO_FABDES"",''),CONCAT('-',ifnull(""SUBFAM"".""U_EXO_DESSUBFAM"",''))) ""Subfamilia"", OITM.""U_stec_marcas"" ""Marca"" "
                     sSQL &= ", OITW.""OnHand"" ""Stock"", OITW.""IsCommited"" ""comprometido"", OITW.""OnOrder"" ""Pedido"",ifnull(OMRC.""FirmName"",'') ""Fabricante"", Ifnull(DTO.""Discount"",0) ""Dto. IC"" "
+                    sSQL &= ", ITM1.""Price"" ""Precio"" "
                     sSQL &= " From OITW "
                     sSQL &= " INNER JOIN OWHS ON OITW.""WhsCode""=OWHS.""WhsCode"" "
                     sSQL &= " INNER JOIN OITM ON OITW.""ItemCode""=OITM.""ItemCode"" "
+                    sSQL &= " LEFT JOIN ITM1 ON OITM.""ItemCode""=ITM1.""ItemCode"" and ITM1.""PriceList""='11' "
                     sSQL &= " LEFT JOIN OITB ON OITB.""ItmsGrpCod""=OITM.""ItmsGrpCod"" "
                     sSQL &= " LEFT JOIN OMRC ON OMRC.""FirmCode""=OITM.""FirmCode"" "
                     sSQL &= " LEFT JOIN ""@EXO_FAMSUBFAM"" ""SUBFAM"" ON ""SUBFAM"".""DocEntry""=OITM.""U_EXO_SUBFAM"" "
@@ -372,9 +374,29 @@ Public Class EXO_STOCK
                     If sCodArt.Trim <> "" Then
                         sSQL &= " and t.""Artículo""='" & sCodArt & "' "
                     End If
+                    '''''''' Berta 03/01/2022 '''''''''
+                    'If sDesArt.Trim <> "" Then
+                    '    sSQL &= " and t.""Desc. Artículo"" like '%" & sDesArt & "%' "
+                    'End If
+
                     If sDesArt.Trim <> "" Then
-                        sSQL &= " and t.""Desc. Artículo"" like '%" & sDesArt & "%' "
+                        If sDesArt.IndexOf("*") >= 0 Then
+                            If Left(sDesArt, 1) = "*" Then
+                                sDesArt = ".?" & Right(sDesArt, sDesArt.Length - 1)
+                            End If
+
+                            If Right(sDesArt, 1) = "*" Then
+                                sDesArt = Left(sDesArt, sDesArt.Length - 1) & ".?"
+                            End If
+
+                            sDesArt = sDesArt.ToUpper.Replace("*", "*.+")
+
+                            sSQL &= " and UPPER(t.""Desc. Artículo"") LIKE_REGEXPR '" & sDesArt & "' "
+                        Else
+                            sSQL &= " and UPPER(t.""Desc. Artículo"") = '" & sDesArt.ToUpper & "' "
+                        End If
                     End If
+                    '''''''' Berta 03/01/2022 '''''''''
                     If sFamilia.Trim <> "" And sFamilia.Trim <> "-" Then
                         sSQL &= " and t.""Familia"" ='" & sFamilia & "' "
                     End If
